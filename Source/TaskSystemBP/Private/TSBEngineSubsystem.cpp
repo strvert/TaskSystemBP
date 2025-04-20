@@ -11,6 +11,17 @@ void UTSBEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #endif
 }
 
+void UTSBEngineSubsystem::Deinitialize()
+{
+#if WITH_EDITOR	
+	if (UnpausedEvent.IsValid())
+	{
+		UnpausedEvent->Trigger();
+	}
+	UnpausedEvent.Reset();
+#endif
+}
+
 #if WITH_EDITOR
 bool UTSBEngineSubsystem::IsPaused()
 {

@@ -11,6 +11,8 @@ class TASKSYSTEMBP_API UTSBEngineSubsystem : public UEngineSubsystem
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	virtual void Deinitialize() override;
+
 #if WITH_EDITOR
 	static bool IsPaused();
 

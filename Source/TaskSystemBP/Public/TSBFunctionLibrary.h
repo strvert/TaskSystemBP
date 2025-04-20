@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "TSBDataTypes.h"
+#include "TSBPipe.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "TSBFunctionLibrary.generated.h"
 
+struct FTSBPipe;
 struct FTSBTaskHandle;
 class UTSBTaskObject;
 
@@ -18,33 +20,37 @@ class TASKSYSTEMBP_API UTSBFunctionLibrary : public UBlueprintFunctionLibrary
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem",
-		meta = (AutoCreateRefTerm = "Prerequisites,TaskClass", AdvancedDisplay = "InThreadingPolicy",
+		meta = (AutoCreateRefTerm = "Pipe,Prerequisites,TaskClass", AdvancedDisplay = "Pipe,InThreadingPolicy",
 			WorldContext = "WorldContextObject", BaseStruct = "/Script/TaskSystemBP.TSBTaskBase"))
 	static FTSBTaskHandle LaunchTaskClass(
 		UObject* WorldContextObject,
 		const TSubclassOf<UTSBTaskObject>& TaskClass,
 		const TArray<FTSBTaskHandle>& Prerequisites,
+		const FTSBPipe& Pipe = FTSBPipe(),
 		const ETSBThreadingPolicy InThreadingPolicy = ETSBThreadingPolicy::GameThreadNormalPriority);
 
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem",
-		meta = (AutoCreateRefTerm = "Prerequisites", AdvancedDisplay = "InThreadingPolicy",
+		meta = (AutoCreateRefTerm = "Pipe,Prerequisites", AdvancedDisplay = "Pipe,InThreadingPolicy",
 			BaseStruct = "/Script/TaskSystemBP.TSBTaskBase"))
 	static FTSBTaskHandle LaunchTaskObject(
 		UTSBTaskObject* TaskObject,
 		const TArray<FTSBTaskHandle>& Prerequisites,
+		const FTSBPipe& Pipe = FTSBPipe(),
 		const ETSBThreadingPolicy InThreadingPolicy = ETSBThreadingPolicy::GameThreadNormalPriority);
 
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem",
-		meta = (AutoCreateRefTerm = "Prerequisites", AdvancedDisplay = "InThreadingPolicy",
+		meta = (AutoCreateRefTerm = "Pipe,Prerequisites", AdvancedDisplay = "Pipe,InThreadingPolicy",
 			BaseStruct = "/Script/TaskSystemBP.TSBTaskBase"))
 	static FTSBTaskHandle LaunchTaskEventWithResult(
 		const FTSBTaskWithResult& TaskEvent, const TArray<FTSBTaskHandle>& Prerequisites,
+		const FTSBPipe& Pipe = FTSBPipe(),
 		ETSBThreadingPolicy InThreadingPolicy = ETSBThreadingPolicy::GameThreadNormalPriority);
 
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem",
-		meta = (AutoCreateRefTerm = "Prerequisites", AdvancedDisplay = "InThreadingPolicy"))
+		meta = (AutoCreateRefTerm = "Pipe,Prerequisites", AdvancedDisplay = "Pipe,InThreadingPolicy"))
 	static FTSBTaskHandle LaunchTaskEvent(
 		const FTSBTask& TaskEvent, const TArray<FTSBTaskHandle>& Prerequisites,
+		const FTSBPipe& Pipe = FTSBPipe(),
 		ETSBThreadingPolicy InThreadingPolicy = ETSBThreadingPolicy::GameThreadNormalPriority);
 
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem")
@@ -67,5 +73,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
 	static FTSBTaskHandle MakeTaskEvent(const FString& InDebugName);
-};
 
+	UFUNCTION(BlueprintPure, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
+	static FTSBPipe MakePipe(const FString& InDebugName);
+};

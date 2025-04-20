@@ -2,6 +2,7 @@
 
 #include "TSBEngineSubsystem.h"
 #include "TSBLogChannels.h"
+#include "TSBPipe.h"
 #include "TSBTask.h"
 #include "TSBTaskObject.h"
 
@@ -16,6 +17,7 @@ using namespace TaskSystemBP;
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
                                                     const TSubclassOf<UTSBTaskObject>& TaskClass,
                                                     const TArray<FTSBTaskHandle>& Prerequisites,
+                                                    const FTSBPipe& Pipe,
                                                     const ETSBThreadingPolicy InThreadingPolicy)
 {
 	UTSBTaskObject* CDO = TaskClass->GetDefaultObject<UTSBTaskObject>();
@@ -27,12 +29,12 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
 	const ETSBInstancingPolicy& InstancingPolicy = CDO->InstancingPolicy;
 	if (InstancingPolicy == ETSBInstancingPolicy::NoInstance)
 	{
-		return LaunchTaskObject(CDO, Prerequisites, InThreadingPolicy);
+		return LaunchTaskObject(CDO, Prerequisites, Pipe, InThreadingPolicy);
 	}
 	if (InstancingPolicy == ETSBInstancingPolicy::InstantiatePerExecution)
 	{
 		UTSBTaskObject* TaskObject = NewObject<UTSBTaskObject>(WorldContextObject, TaskClass);
-		return LaunchTaskObject(TaskObject, Prerequisites, InThreadingPolicy);
+		return LaunchTaskObject(TaskObject, Prerequisites, Pipe, InThreadingPolicy);
 	}
 
 	return FTSBTaskHandle{};
@@ -40,6 +42,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
                                                      const TArray<FTSBTaskHandle>& Prerequisites,
+                                                     const FTSBPipe& Pipe,
                                                      const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!IsValid(TaskObject))
@@ -74,6 +77,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWithResult& TaskEvent,
                                                               const TArray<FTSBTaskHandle>& Prerequisites,
+                                                              const FTSBPipe& Pipe,
                                                               const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!TaskEvent.IsBound())
@@ -116,6 +120,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
                                                     const TArray<FTSBTaskHandle>& Prerequisites,
+                                                    const FTSBPipe& Pipe,
                                                     const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!TaskEvent.IsBound())
@@ -123,28 +128,46 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 		return FTSBTaskHandle{};
 	}
 
-	const TTask<FTSBTaskResult> Task = Launch(
-		*TaskEvent.GetFunctionName().ToString(), [TaskEvent, InThreadingPolicy]
-		{
+	auto InternalTask = [TaskEvent, InThreadingPolicy, Pipe]()
+	{
 #if WITH_EDITOR
-			if (UTSBEngineSubsystem::IsPaused())
+		if (UTSBEngineSubsystem::IsPaused())
+		{
+			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
+			if (Pipe.Pipe.IsValid())
 			{
-				UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-				AddNested(Launch(UE_SOURCE_LOCATION, [TaskEvent]
+				Pipe.Pipe->Launch(UE_SOURCE_LOCATION, [TaskEvent]
 				{
 					TaskEvent.Execute();
-				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
+				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 			}
 			else
-#endif
 			{
-				TaskEvent.Execute();
+				Launch(UE_SOURCE_LOCATION, [TaskEvent]
+				{
+					TaskEvent.Execute();
+				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 			}
+		}
+		else
+#endif
+		{
+			TaskEvent.Execute();
+		}
+		return FTSBTaskResult{};
+	};
 
-			return FTSBTaskResult{};
-		},
-		ToTaskArray(Prerequisites), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+	if (Pipe.Pipe.IsValid())
+	{
+		const TTask<FTSBTaskResult> Task = Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+		                                                     ToTaskArray(Prerequisites),
+		                                                     ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+		return FTSBTaskHandle{Task};
+	}
 
+	const TTask<FTSBTaskResult> Task = Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+	                                          ToTaskArray(Prerequisites),
+	                                          ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 	return FTSBTaskHandle{Task};
 }
 
@@ -220,4 +243,9 @@ TArray<FTSBTaskHandle> UTSBFunctionLibrary::Conv_HandleToHandleArray(const FTSBT
 FTSBTaskHandle UTSBFunctionLibrary::MakeTaskEvent(const FString& InDebugName)
 {
 	return FTSBTaskHandle{FTaskEvent{*InDebugName}};
+}
+
+FTSBPipe UTSBFunctionLibrary::MakePipe(const FString& InDebugName)
+{
+	return FTSBPipe{*InDebugName};
 }
