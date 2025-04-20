@@ -87,23 +87,29 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 
 	TSharedPtr<FTSBTaskResult> ResultHolder = MakeShared<FTSBTaskResult>();
 
-	const FTask MainTask = Launch(
-		*TaskEvent.GetFunctionName().ToString(), [TaskEvent, ResultHolder, InThreadingPolicy]() mutable
-		{
+	auto InternalTask = [TaskEvent, ResultHolder, InThreadingPolicy]() mutable
+	{
 #if WITH_EDITOR
-			if (UTSBEngineSubsystem::IsPaused())
+		if (UTSBEngineSubsystem::IsPaused())
+		{
+			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
+			AddNested(Launch(UE_SOURCE_LOCATION, [TaskEvent, ResultHolder]() mutable
 			{
-				UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-				AddNested(Launch(UE_SOURCE_LOCATION, [TaskEvent, ResultHolder]() mutable
-				{
-					*ResultHolder = TaskEvent.Execute();
-				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
-				return;
-			}
+				*ResultHolder = TaskEvent.Execute();
+			}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
+			return;
+		}
 #endif
-			*ResultHolder = TaskEvent.Execute();
-		},
-		ToTaskArray(Prerequisites), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+		*ResultHolder = TaskEvent.Execute();
+	};
+
+	const FTask MainTask = Pipe.Pipe.IsValid()
+		                       ? Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+		                                           ToTaskArray(Prerequisites), ETaskPriority::Normal,
+		                                           ToTaskPriority(InThreadingPolicy))
+		                       : Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+		                                ToTaskArray(Prerequisites), ETaskPriority::Normal,
+		                                ToTaskPriority(InThreadingPolicy));
 
 	const auto ReturnTask = Launch(UE_SOURCE_LOCATION, [ResultHolder]
 	{
@@ -159,7 +165,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 
 	if (Pipe.Pipe.IsValid())
 	{
-		const TTask<FTSBTaskResult> Task = Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+		const TTask<FTSBTaskResult> Task = Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(),
+		                                                     MoveTemp(InternalTask),
 		                                                     ToTaskArray(Prerequisites),
 		                                                     ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 		return FTSBTaskHandle{Task};
