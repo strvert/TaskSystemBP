@@ -50,29 +50,62 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		return FTSBTaskHandle{};
 	}
 
-	const TTask<FTSBTaskResult> Task = Launch(*TaskObject->GetName(), [TaskObject]
+	TSharedPtr<FTSBTaskResult> ResultHolder = MakeShared<FTSBTaskResult>();
+
+	auto InternalTask = [TaskObject, InThreadingPolicy, ResultHolder]
 	{
 		if (!IsValid(TaskObject))
 		{
-			return FTSBTaskResult{};
+			return;
 		}
-		return TaskObject->ExecuteTask();
-	}, ToTaskArray(Prerequisites), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+#if WITH_EDITOR
+		if (UTSBEngineSubsystem::IsPaused())
+		{
+			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
+			AddNested(Launch(*TaskObject->GetName(), [TaskObject, ResultHolder]
+			{
+				if (!IsValid(TaskObject))
+				{
+					return;
+				}
+				*ResultHolder = TaskObject->ExecuteTask();
+			}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
+			return;
+		}
+#endif
+		*ResultHolder = TaskObject->ExecuteTask();
+	};
+
+	const FTask Task = Pipe.Pipe.IsValid()
+		                   ? Pipe.Pipe->Launch(*TaskObject->GetName(), MoveTemp(InternalTask),
+		                                       ToTaskArray(Prerequisites), ETaskPriority::Normal,
+		                                       ToTaskPriority(InThreadingPolicy))
+		                   : Launch(*TaskObject->GetName(), MoveTemp(InternalTask), ToTaskArray(Prerequisites),
+		                            ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 
 	// Mark the task object as garbage if the instancing policy is set to instantiate per execution.
-	if (TaskObject->InstancingPolicy == ETSBInstancingPolicy::InstantiatePerExecution)
-	{
-		Launch(*TaskObject->GetName(), [TaskObject]
-		{
-			if (!IsValid(TaskObject))
-			{
-				return;
-			}
-			TaskObject->MarkAsGarbage();
-		}, Task, ETaskPriority::Normal, EExtendedTaskPriority::GameThreadNormalPri);
-	}
+	// if (TaskObject->InstancingPolicy == ETSBInstancingPolicy::InstantiatePerExecution)
+	// {
+	// 	Launch(*TaskObject->GetName(), [TaskObject]
+	// 	{
+	// 		if (!IsValid(TaskObject))
+	// 		{
+	// 			return;
+	// 		}
+	// 		TaskObject->MarkAsGarbage();
+	// 	}, Task, ETaskPriority::Normal, EExtendedTaskPriority::GameThreadNormalPri);
+	// }
 
-	return FTSBTaskHandle(Task);
+	const auto ReturnTask = Launch(UE_SOURCE_LOCATION, [ResultHolder]
+	{
+		if (ResultHolder.IsValid())
+		{
+			return *ResultHolder;
+		}
+		return FTSBTaskResult{};
+	}, Task, ETaskPriority::Normal, EExtendedTaskPriority::Inline);
+
+	return FTSBTaskHandle{ReturnTask};
 }
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWithResult& TaskEvent,
@@ -160,21 +193,20 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 		{
 			TaskEvent.Execute();
 		}
-		return FTSBTaskResult{};
 	};
 
 	if (Pipe.Pipe.IsValid())
 	{
-		const TTask<FTSBTaskResult> Task = Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(),
-		                                                     MoveTemp(InternalTask),
-		                                                     ToTaskArray(Prerequisites),
-		                                                     ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+		const FTask Task = Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(),
+		                                     MoveTemp(InternalTask),
+		                                     ToTaskArray(Prerequisites),
+		                                     ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 		return FTSBTaskHandle{Task};
 	}
 
-	const TTask<FTSBTaskResult> Task = Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
-	                                          ToTaskArray(Prerequisites),
-	                                          ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+	const FTask Task = Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+	                          ToTaskArray(Prerequisites),
+	                          ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 	return FTSBTaskHandle{Task};
 }
 
@@ -224,14 +256,15 @@ bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskResu
 		return false;
 	}
 
-	if (Task.TaskType != ETSBTaskType::Task)
+	if (Task.TaskType != ETSBTaskType::TSBResultTask)
 	{
 		UE_LOG(LogTaskSystemBP, Warning,
-		       TEXT("UTSBFunctionLibrary::GetTaskResult: Task is not task type. Cannot get result"));
+		       TEXT("UTSBFunctionLibrary::GetTaskResult: Task is not having a result."));
 		return false;
 	}
 
-	TSharedRef<TTask<FTSBTaskResult>> TaskRef = StaticCastSharedRef<TTask<FTSBTaskResult>>(Task.Handle.ToSharedRef());
+	const TSharedRef<TTask<FTSBTaskResult>> TaskRef = StaticCastSharedRef<TTask<FTSBTaskResult>>(
+		Task.Handle.ToSharedRef());
 	if (!TaskRef->IsCompleted())
 	{
 		UE_LOG(LogTaskSystemBP, Warning, TEXT("UTSBFunctionLibrary::GetTaskResult: Task is not completed"));
@@ -241,6 +274,11 @@ bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskResu
 	OutResult = TaskRef->GetResult();
 	return true;
 }
+
+// FTSBTaskHandle UTSBFunctionLibrary::Any(const TArray<FTSBTaskHandle>& Tasks)
+// {
+// 	return FTSBTaskHandle{UE::Tasks::Any(Tasks)};
+// }
 
 TArray<FTSBTaskHandle> UTSBFunctionLibrary::Conv_HandleToHandleArray(const FTSBTaskHandle& InHandle)
 {
@@ -256,3 +294,8 @@ FTSBPipe UTSBFunctionLibrary::MakePipe(const FString& InDebugName)
 {
 	return FTSBPipe{*InDebugName};
 }
+
+// FTSBCancellationToken UTSBFunctionLibrary::MakeCancellationToken()
+// {
+// 	return FTSBCancellationToken::MakeCancellationToken();
+// }

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "TSBCancellationToken.h"
 #include "TSBDataTypes.h"
 #include "TSBPipe.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -67,13 +68,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem")
 	static bool GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskResult& OutResult);
-
-	UFUNCTION(BlueprintPure, meta = (CompactNodeTitle = "->", BlueprintAutocast), Category = "TaskSystem")
-	static TArray<FTSBTaskHandle> Conv_HandleToHandleArray(const FTSBTaskHandle& InHandle);
+	
+	// UFUNCTION(BlueprintCallable, Category = "TaskSystem")
+	// static FTSBTaskHandle Any(const TArray<FTSBTaskHandle>& Tasks);
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
 	static FTSBTaskHandle MakeTaskEvent(const FString& InDebugName);
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
 	static FTSBPipe MakePipe(const FString& InDebugName);
+
+	// UFUNCTION(BlueprintPure, Category = "TaskSystem")
+	// static FTSBCancellationToken MakeCancellationToken();
+
+	UFUNCTION(BlueprintPure, meta = (CompactNodeTitle = "->", BlueprintAutocast), Category = "TaskSystem")
+	static TArray<FTSBTaskHandle> Conv_HandleToHandleArray(const FTSBTaskHandle& InHandle);
 };

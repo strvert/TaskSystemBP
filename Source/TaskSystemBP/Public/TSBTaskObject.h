@@ -6,7 +6,7 @@
 #include "UObject/Object.h"
 #include "TSBTaskObject.generated.h"
 
-UCLASS(Abstract)
+UCLASS(Abstract, Blueprintable)
 class TASKSYSTEMBP_API UTSBTaskObject : public UObject
 {
 	GENERATED_BODY()
@@ -16,6 +16,7 @@ public:
 	FTSBTaskResult K2_ExecuteTask();
 
 	virtual FTSBTaskResult ExecuteTask();
+
 
 	UPROPERTY(EditAnywhere, Category = "Task System")
 	ETSBInstancingPolicy InstancingPolicy;
