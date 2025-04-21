@@ -16,7 +16,7 @@ struct TASKSYSTEMBP_API FTSBTaskResult
 
 namespace TaskSystemBP
 {
-	template <typename ResultStructType, typename ValueType = typename ResultStructType::ValueType>
+	template <typename ResultStructType, typename ValueType = decltype(ResultStructType::ResultValue)>
 	FTSBTaskResult MakeTaskResult(const ValueType& InValue)
 	{
 		FTSBTaskResult Result;
@@ -24,7 +24,7 @@ namespace TaskSystemBP
 		return Result;
 	}
 
-	template <typename ResultStructType, typename ValueType = typename ResultStructType::ValueType>
+	template <typename ResultStructType, typename ValueType = decltype(ResultStructType::ResultValue)>
 	ValueType ExtractValue(const FTSBTaskResult& InTaskResult)
 	{
 		if (auto* Result = InTaskResult.ResultValue.GetPtr<ResultStructType>())
@@ -40,8 +40,6 @@ struct TASKSYSTEMBP_API FTSBTaskResult_String
 {
 	GENERATED_BODY()
 
-	using ValueType = FString;
-
 	UPROPERTY()
 	FString ResultValue;
 };
@@ -50,8 +48,6 @@ USTRUCT()
 struct TASKSYSTEMBP_API FTSBTaskResult_Int
 {
 	GENERATED_BODY()
-
-	using ValueType = int32;
 
 	UPROPERTY()
 	int32 ResultValue;
@@ -62,8 +58,6 @@ struct TASKSYSTEMBP_API FTSBTaskResult_Float
 {
 	GENERATED_BODY()
 
-	using ValueType = float;
-
 	UPROPERTY()
 	float ResultValue;
 };
@@ -72,8 +66,6 @@ USTRUCT()
 struct TASKSYSTEMBP_API FTSBTaskResult_Bool
 {
 	GENERATED_BODY()
-
-	using ValueType = bool;
 
 	UPROPERTY()
 	bool ResultValue;
@@ -85,11 +77,9 @@ class TASKSYSTEMBP_API UTSBTaskResultLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskResult")
-	static FORCEINLINE FTSBTaskResult MakeTaskResult(const FInstancedStruct& InValue)
-	{
-		return FTSBTaskResult{InValue};
-	}
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "TaskSystemBP|TaskResult",
+		meta = (CustomStructureParam = "InValue"))
+	static FORCEINLINE FTSBTaskResult MakeTaskResult(const int32& InValue);
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskResult")
 	static FORCEINLINE FInstancedStruct GetTaskResultValue(const FTSBTaskResult& InTaskResult)
@@ -145,4 +135,7 @@ public:
 	{
 		return TaskSystemBP::ExtractValue<FTSBTaskResult_Bool>(InTaskResult);
 	}
+
+private:
+	DECLARE_FUNCTION(execMakeTaskResult);
 };

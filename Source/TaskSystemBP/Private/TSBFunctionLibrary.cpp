@@ -50,9 +50,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		return FTSBTaskHandle{};
 	}
 
-	TSharedPtr<FTSBTaskResult> ResultHolder = MakeShared<FTSBTaskResult>();
-
-	auto InternalTask = [TaskObject, InThreadingPolicy, ResultHolder]
+	auto InternalTask = [TaskObject, InThreadingPolicy]
 	{
 		if (!IsValid(TaskObject))
 		{
@@ -62,18 +60,18 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		if (UTSBEngineSubsystem::IsPaused())
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-			AddNested(Launch(*TaskObject->GetName(), [TaskObject, ResultHolder]
+			AddNested(Launch(*TaskObject->GetName(), [TaskObject]
 			{
 				if (!IsValid(TaskObject))
 				{
 					return;
 				}
-				*ResultHolder = TaskObject->ExecuteTask();
+				TaskObject->ExecuteTask();
 			}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
 			return;
 		}
 #endif
-		*ResultHolder = TaskObject->ExecuteTask();
+		TaskObject->ExecuteTask();
 	};
 
 	const FTask Task = Pipe.Pipe.IsValid()
@@ -83,24 +81,11 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		                   : Launch(*TaskObject->GetName(), MoveTemp(InternalTask), ToTaskArray(Prerequisites),
 		                            ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 
-	// Mark the task object as garbage if the instancing policy is set to instantiate per execution.
-	// if (TaskObject->InstancingPolicy == ETSBInstancingPolicy::InstantiatePerExecution)
-	// {
-	// 	Launch(*TaskObject->GetName(), [TaskObject]
-	// 	{
-	// 		if (!IsValid(TaskObject))
-	// 		{
-	// 			return;
-	// 		}
-	// 		TaskObject->MarkAsGarbage();
-	// 	}, Task, ETaskPriority::Normal, EExtendedTaskPriority::GameThreadNormalPri);
-	// }
-
-	const auto ReturnTask = Launch(UE_SOURCE_LOCATION, [ResultHolder]
+	const auto ReturnTask = Launch(UE_SOURCE_LOCATION, [TaskObject]
 	{
-		if (ResultHolder.IsValid())
+		if (IsValid(TaskObject))
 		{
-			return *ResultHolder;
+			return TaskObject->GetTaskResult();
 		}
 		return FTSBTaskResult{};
 	}, Task, ETaskPriority::Normal, EExtendedTaskPriority::Inline);

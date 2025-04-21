@@ -1,10 +1,18 @@
 ﻿#include "TSBTaskObject.h"
 
-#include "TSBTaskResult.h"
-
-FTSBTaskResult UTSBTaskObject::ExecuteTask()
+void UTSBTaskObject::SetTaskResult(const FTSBTaskResult& InTaskResult)
 {
-	return K2_ExecuteTask();
+	TaskResult = InTaskResult;
+}
+
+void UTSBTaskObject::ExecuteTask()
+{
+	K2_ExecuteTask();
+}
+
+FTSBTaskResult UTSBTaskObject::GetTaskResult()
+{
+	return TaskResult;
 }
 
 #if WITH_EDITOR

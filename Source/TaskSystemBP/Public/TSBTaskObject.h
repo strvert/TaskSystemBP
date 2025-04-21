@@ -12,11 +12,15 @@ class TASKSYSTEMBP_API UTSBTaskObject : public UObject
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintImplementableEvent, Category = "Task System")
-	FTSBTaskResult K2_ExecuteTask();
+	UFUNCTION(BlueprintImplementableEvent, Category = "Task System", DisplayName = "Execute Task")
+	void K2_ExecuteTask();
 
-	virtual FTSBTaskResult ExecuteTask();
+	UFUNCTION(BlueprintCallable, Category = "Task System")
+	void SetTaskResult(const FTSBTaskResult& InTaskResult);
 
+	virtual void ExecuteTask();
+	
+	FTSBTaskResult GetTaskResult();
 
 	UPROPERTY(EditAnywhere, Category = "Task System")
 	ETSBInstancingPolicy InstancingPolicy;
@@ -24,4 +28,8 @@ public:
 #if WITH_EDITOR
 	virtual bool ImplementsGetWorld() const override;
 #endif
+
+private:
+	UPROPERTY()
+	FTSBTaskResult TaskResult;
 };
