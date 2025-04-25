@@ -42,6 +42,9 @@ struct TASKSYSTEMBP_API FTSBTaskResult_String
 
 	UPROPERTY()
 	FString ResultValue;
+
+	FTSBTaskResult_String() = default; // デフォルトコンストラクタ
+	FTSBTaskResult_String(const FString& InValue) : ResultValue(InValue) {}
 };
 
 USTRUCT()
@@ -51,6 +54,9 @@ struct TASKSYSTEMBP_API FTSBTaskResult_Int
 
 	UPROPERTY()
 	int32 ResultValue;
+
+	FTSBTaskResult_Int() : ResultValue(0) {} // デフォルトコンストラクタ
+	FTSBTaskResult_Int(const int32 InValue) : ResultValue(InValue) {}
 };
 
 USTRUCT()
@@ -60,6 +66,9 @@ struct TASKSYSTEMBP_API FTSBTaskResult_Float
 
 	UPROPERTY()
 	float ResultValue;
+
+	FTSBTaskResult_Float() : ResultValue(0.0f) {} // デフォルトコンストラクタ
+	FTSBTaskResult_Float(const float InValue) : ResultValue(InValue) {}
 };
 
 USTRUCT()
@@ -69,6 +78,9 @@ struct TASKSYSTEMBP_API FTSBTaskResult_Bool
 
 	UPROPERTY()
 	bool ResultValue;
+
+	FTSBTaskResult_Bool() : ResultValue(false) {} // デフォルトコンストラクタ
+	FTSBTaskResult_Bool(const bool InValue) : ResultValue(InValue) {}
 };
 
 UCLASS()
