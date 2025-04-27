@@ -72,10 +72,10 @@ public:
 	// UFUNCTION(BlueprintCallable, Category = "TaskSystem")
 	// static FTSBTaskHandle Any(const TArray<FTSBTaskHandle>& Tasks);
 
-	UFUNCTION(BlueprintPure, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
+	UFUNCTION(BlueprintCallable, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
 	static FTSBTaskHandle MakeTaskEvent(const FString& InDebugName);
 
-	UFUNCTION(BlueprintPure, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
+	UFUNCTION(BlueprintCallable, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
 	static FTSBPipe MakePipe(const FString& InDebugName);
 
 	// UFUNCTION(BlueprintPure, Category = "TaskSystem")
