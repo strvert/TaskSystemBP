@@ -4,7 +4,7 @@
 #include "UObject/Object.h"
 #include "TSBPipe.generated.h"
 
-USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/TaskSystemBP.TSBPipe.MakePipe"))
+USTRUCT(BlueprintType, meta = (HasNativeMake))
 struct TASKSYSTEMBP_API FTSBPipe
 {
 	GENERATED_BODY()
