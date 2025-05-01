@@ -113,7 +113,10 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
 			AddNested(Launch(UE_SOURCE_LOCATION, [TaskEvent, ResultHolder]() mutable
 			{
-				*ResultHolder = TaskEvent.Execute();
+				if (TaskEvent.IsBound())
+				{
+					*ResultHolder = TaskEvent.Execute();
+				}
 			}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
 			return;
 		}
@@ -162,14 +165,14 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 			{
 				Pipe.Pipe->Launch(UE_SOURCE_LOCATION, [TaskEvent]
 				{
-					TaskEvent.Execute();
+					TaskEvent.ExecuteIfBound();
 				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 			}
 			else
 			{
 				Launch(UE_SOURCE_LOCATION, [TaskEvent]
 				{
-					TaskEvent.Execute();
+					TaskEvent.ExecuteIfBound();
 				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 			}
 		}
