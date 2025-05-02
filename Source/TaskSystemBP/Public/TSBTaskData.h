@@ -9,6 +9,6 @@ struct TASKSYSTEMBP_API FTSBTaskData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TaskSystemBP")
-	FInstancedStruct TaskData;
+	UPROPERTY()
+	FInstancedStruct ResultValue;
 };

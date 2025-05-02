@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "TSBDataTypes.h"
-#include "TSBTaskResult.h"
+#include "TSBTaskData.h"
 #include "UObject/Object.h"
 #include "TSBTaskObject.generated.h"
 
@@ -16,11 +16,11 @@ public:
 	void K2_ExecuteTask();
 
 	UFUNCTION(BlueprintCallable, Category = "Task System")
-	void SetTaskResult(const FTSBTaskResult& InTaskResult);
+	void SetTaskResult(const FTSBTaskData& InTaskResult);
 
 	virtual void ExecuteTask();
 	
-	FTSBTaskResult GetTaskResult();
+	FTSBTaskData GetTaskResult();
 
 	UPROPERTY(EditAnywhere, Category = "Task System")
 	ETSBInstancingPolicy InstancingPolicy;
@@ -31,5 +31,5 @@ public:
 
 private:
 	UPROPERTY()
-	FTSBTaskResult TaskResult;
+	FTSBTaskData TaskResult;
 };

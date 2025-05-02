@@ -1,10 +1,10 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "TSBTaskResult.h"
+#include "TSBTaskData.h"
 #include "TSBDataTypes.generated.h"
 
-DECLARE_DYNAMIC_DELEGATE_RetVal(FTSBTaskResult, FTSBTaskWithResult);
+DECLARE_DYNAMIC_DELEGATE_RetVal(FTSBTaskData, FTSBTaskWithResult);
 DECLARE_DYNAMIC_DELEGATE(FTSBTask);
 
 UENUM()

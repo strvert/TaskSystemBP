@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "TSBTaskResult.h"
+#include "TSBTaskData.h"
 #include "UObject/Object.h"
 #include "TSBTask.generated.h"
 
@@ -32,8 +32,8 @@ struct TASKSYSTEMBP_API FTSBTaskHandle
 	{
 	}
 
-	explicit FTSBTaskHandle(const UE::Tasks::TTask<FTSBTaskResult>& InTask)
-		: Handle(MakeShared<UE::Tasks::TTask<FTSBTaskResult>>(InTask)), TaskType(ETSBTaskType::TSBResultTask)
+	explicit FTSBTaskHandle(const UE::Tasks::TTask<FTSBTaskData>& InTask)
+		: Handle(MakeShared<UE::Tasks::TTask<FTSBTaskData>>(InTask)), TaskType(ETSBTaskType::TSBResultTask)
 	{
 	}
 
