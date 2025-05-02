@@ -93,10 +93,14 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 	Input.NamedPrerequisites = NamedPrerequisites;
 	Input.CustomData = TaskInput;
 
-	auto InternalTask = [TaskObject, InThreadingPolicy, Pipe, Input]()
+	const FString DebugName = *TaskObject->GetName();
+
+	auto InternalTask = [TaskObject, InThreadingPolicy, Pipe, Input, DebugName]
 	{
 		if (!IsValid(TaskObject))
 		{
+			UE_LOG(LogTaskSystemBP, Warning,
+			       TEXT("UTSBFunctionLibrary::LaunchTaskObject: TaskObject is not valid. DebugName: %s"), *DebugName);
 			return;
 		}
 #if WITH_EDITOR
@@ -104,10 +108,13 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
 			AddNested(LaunchTaskConditional(
-				Pipe, *TaskObject->GetName(), [TaskObject, Input]
+				Pipe, *TaskObject->GetName(), [TaskObject, Input, DebugName]
 				{
 					if (!IsValid(TaskObject))
 					{
+						UE_LOG(LogTaskSystemBP, Warning,
+						       TEXT("UTSBFunctionLibrary::LaunchTaskObject: TaskObject is not valid. DebugName: %s"),
+						       *DebugName);
 						return;
 					}
 					TaskObject->ExecuteTask(Input);
@@ -156,17 +163,26 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 	Input.NamedPrerequisites = NamedPrerequisites;
 	Input.CustomData = TaskInput;
 
-	auto InternalTask = [TaskEvent, ResultHolder, InThreadingPolicy, Pipe, Input]() mutable
+	const FString DebugName = *TaskEvent.GetFunctionName().ToString();
+
+	auto InternalTask = [TaskEvent, ResultHolder, InThreadingPolicy, Pipe, Input, DebugName]() mutable
 	{
 #if WITH_EDITOR
 		if (UTSBEngineSubsystem::IsPaused())
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-			auto LazyInternalTask = [TaskEvent, ResultHolder, Input]()
+			auto LazyInternalTask = [TaskEvent, ResultHolder, Input, DebugName]
 			{
 				if (TaskEvent.IsBound())
 				{
 					*ResultHolder = TaskEvent.Execute(Input);
+				}
+				else
+				{
+					UE_LOG(LogTaskSystemBP, Warning,
+					       TEXT("UTSBFunctionLibrary::LaunchTaskEventWithResult: TaskEvent is not bound. DebugName: %s"
+					       ),
+					       *DebugName);
 				}
 			};
 			AddNested(LaunchTaskConditional(
@@ -176,6 +192,13 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 			return;
 		}
 #endif
+		if (!TaskEvent.IsBound())
+		{
+			UE_LOG(LogTaskSystemBP, Warning,
+			       TEXT("UTSBFunctionLibrary::LaunchTaskEventWithResult: TaskEvent is not bound. DebugName: %s"),
+			       *DebugName);
+			return;
+		}
 		*ResultHolder = TaskEvent.Execute(Input);
 	};
 
@@ -216,14 +239,23 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 	Input.NamedPrerequisites = NamedPrerequisites;
 	Input.CustomData = TaskInput;
 
-	auto InternalTask = [TaskEvent, InThreadingPolicy, Pipe, Input]()
+	const FString DebugName = *TaskEvent.GetFunctionName().ToString();
+
+	auto InternalTask = [TaskEvent, InThreadingPolicy, Pipe, Input, DebugName]()
 	{
 #if WITH_EDITOR
 		if (UTSBEngineSubsystem::IsPaused())
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-			auto LazyInternalTask = [TaskEvent, Input]()
+			auto LazyInternalTask = [TaskEvent, Input, DebugName]
 			{
+				if (!TaskEvent.IsBound())
+				{
+					UE_LOG(LogTaskSystemBP, Warning,
+					       TEXT("UTSBFunctionLibrary::LaunchTaskEvent: TaskEvent is not bound. DebugName: %s"),
+					       *DebugName);
+					return;
+				}
 				TaskEvent.Execute(Input);
 			};
 
@@ -235,6 +267,13 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 		else
 #endif
 		{
+			if (!TaskEvent.IsBound())
+			{
+				UE_LOG(LogTaskSystemBP, Warning,
+				       TEXT("UTSBFunctionLibrary::LaunchTaskEvent: TaskEvent is not bound. DebugName: %s"),
+				       *DebugName);
+				return;
+			}
 			TaskEvent.Execute(Input);
 		}
 	};
@@ -244,7 +283,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
 
 	const FTask Task = LaunchTaskConditional(
-		Pipe, *TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+		Pipe, *DebugName, MoveTemp(InternalTask),
 		MoveTemp(PrereqTaskHandles), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 
 	return FTSBTaskHandle{Task};
