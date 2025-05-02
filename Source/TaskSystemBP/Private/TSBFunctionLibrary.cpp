@@ -271,6 +271,15 @@ void UTSBFunctionLibrary::Trigger(FTSBTaskHandle& Event)
 	}
 }
 
+FTSBTaskHandle UTSBFunctionLibrary::CombineHandles(const TArray<FTSBTaskHandle>& Handles)
+{
+	return FTSBTaskHandle{
+		Launch(UE_SOURCE_LOCATION, []
+		{
+		}, HandleArrayToTaskArray(Handles), ETaskPriority::Normal, EExtendedTaskPriority::Inline)
+	};
+}
+
 void UTSBFunctionLibrary::BindCompletion(const FTSBTaskHandle& Task, const FTSBOnTaskCompleted& OnTaskCompleted)
 {
 	if (!Task.Handle.IsValid())
