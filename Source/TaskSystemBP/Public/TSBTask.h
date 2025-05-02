@@ -49,4 +49,15 @@ struct TASKSYSTEMBP_API FTSBTaskHandle
 namespace TaskSystemBP
 {
 	TASKSYSTEMBP_API TArray<UE::Tasks::Private::FTaskHandle> ToTaskArray(const TArray<FTSBTaskHandle>& Handles);
+	template<typename Key>
+	TASKSYSTEMBP_API TArray<UE::Tasks::Private::FTaskHandle> ToTaskArray(const TMap<Key, FTSBTaskHandle>& Handles)
+	{
+		TArray<UE::Tasks::Private::FTaskHandle> Result;
+		Result.Reserve(Handles.Num());
+		for (const auto& Pair : Handles)
+		{
+			Result.Add(*Pair.Value.Handle);
+		}
+		return Result;
+	}
 }

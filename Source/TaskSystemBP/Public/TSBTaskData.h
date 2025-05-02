@@ -10,5 +10,5 @@ struct TASKSYSTEMBP_API FTSBTaskData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FInstancedStruct ResultValue;
+	FInstancedStruct DataValue;
 };
