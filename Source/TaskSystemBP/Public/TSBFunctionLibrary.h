@@ -83,4 +83,16 @@ public:
 
 	UFUNCTION(BlueprintPure, meta = (CompactNodeTitle = "->", BlueprintAutocast), Category = "TaskSystem")
 	static TArray<FTSBTaskHandle> Conv_HandleToHandleArray(const FTSBTaskHandle& InHandle);
+	
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "TaskSystemBP|TaskResult",
+		meta = (CustomStructureParam = "InValue"))
+	static FORCEINLINE FTSBTaskResult MakeTaskStructResult(const int32& InValue);
+
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "TaskSystemBP|TaskResult",
+		meta = (ExpandEnumAsExecs = "ExecResult", CustomStructureParam = "OutValue"))
+	static FORCEINLINE void GetTaskStructResult(ETSBTaskResultStatus& ExecResult, UPARAM(ref) FTSBTaskHandle& TaskResult, int32& OutValue);
+
+private:
+	DECLARE_FUNCTION(execMakeTaskStructResult);
+	DECLARE_FUNCTION(execGetTaskStructResult);
 };

@@ -5,6 +5,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "TSBTaskResult.generated.h"
 
+struct FTSBTaskHandle;
+
 USTRUCT(BlueprintType)
 struct TASKSYSTEMBP_API FTSBTaskResult
 {
@@ -83,16 +85,19 @@ struct TASKSYSTEMBP_API FTSBTaskResult_Bool
 	FTSBTaskResult_Bool(const bool InValue) : ResultValue(InValue) {}
 };
 
+UENUM()
+enum class ETSBTaskResultStatus : uint8
+{
+	Valid,
+	NotValid,
+};
+
 UCLASS()
 class TASKSYSTEMBP_API UTSBTaskResultLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, CustomThunk, Category = "TaskSystemBP|TaskResult",
-		meta = (CustomStructureParam = "InValue"))
-	static FORCEINLINE FTSBTaskResult MakeTaskResult(const int32& InValue);
-
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskResult")
 	static FORCEINLINE FInstancedStruct GetTaskResultValue(const FTSBTaskResult& InTaskResult)
 	{
@@ -147,7 +152,4 @@ public:
 	{
 		return TaskSystemBP::ExtractValue<FTSBTaskResult_Bool>(InTaskResult);
 	}
-
-private:
-	DECLARE_FUNCTION(execMakeTaskResult);
 };

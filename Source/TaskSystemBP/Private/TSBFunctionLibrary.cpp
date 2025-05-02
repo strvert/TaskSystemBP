@@ -5,6 +5,7 @@
 #include "TSBPipe.h"
 #include "TSBTask.h"
 #include "TSBTaskObject.h"
+#include "Blueprint/BlueprintExceptionInfo.h"
 
 #if WITH_EDITOR
 #include "UnrealEdGlobals.h"
@@ -13,6 +14,8 @@
 
 using namespace UE::Tasks;
 using namespace TaskSystemBP;
+
+#define LOCTEXT_NAMESPACE "TaskSystemBP"
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
                                                     const TSubclassOf<UTSBTaskObject>& TaskClass,
@@ -287,3 +290,91 @@ FTSBPipe UTSBFunctionLibrary::MakePipe(const FString& InDebugName)
 // {
 // 	return FTSBCancellationToken::MakeCancellationToken();
 // }
+
+DEFINE_FUNCTION(UTSBFunctionLibrary::execMakeTaskStructResult)
+{
+	// Read wildcard Value input.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	const FStructProperty* ValueProp = CastField<FStructProperty>(Stack.MostRecentProperty);
+	const void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	P_FINISH;
+
+	if (!ValueProp || !ValuePtr)
+	{
+		const FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AbortExecution,
+			LOCTEXT("InstancedStruct_MakeInvalidValueWarning", "Invalid value passed to MakeTaskResult")
+		);
+
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+
+		P_NATIVE_BEGIN;
+			static_cast<FTSBTaskResult*>(RESULT_PARAM)->ResultValue.Reset();
+		P_NATIVE_END;
+	}
+	else
+	{
+		P_NATIVE_BEGIN;
+			static_cast<FTSBTaskResult*>(RESULT_PARAM)->ResultValue.InitializeAs(
+				ValueProp->Struct,
+				static_cast<const uint8*>(ValuePtr));
+		P_NATIVE_END;
+	}
+}
+
+DEFINE_FUNCTION(UTSBFunctionLibrary::execGetTaskStructResult)
+{
+	P_GET_ENUM_REF(ETSBTaskResultStatus, ExecResult);
+	P_GET_STRUCT_REF(FTSBTaskHandle, TaskHandle);
+
+	// Read wildcard Value input.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	const FStructProperty* ValueProp = CastField<FStructProperty>(Stack.MostRecentProperty);
+	void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	P_FINISH;
+
+	ExecResult = ETSBTaskResultStatus::NotValid;
+
+	if (!ValueProp || !ValuePtr)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(
+			EBlueprintExceptionType::AbortExecution,
+			LOCTEXT("InstancedStruct_GetInvalidValueWarning",
+			        "Failed to resolve the Value for Get Instanced Struct Value")
+		);
+
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+	}
+	else
+	{
+		P_NATIVE_BEGIN;
+			FTSBTaskResult TaskResult;
+			if (!UTSBFunctionLibrary::GetTaskResult(TaskHandle, TaskResult))
+			{
+				ExecResult = ETSBTaskResultStatus::NotValid;
+				return;
+			}
+
+			if (const FInstancedStruct& InstancedStruct = TaskResult.ResultValue;
+				InstancedStruct.IsValid() && InstancedStruct.GetScriptStruct()->IsChildOf(ValueProp->Struct))
+			{
+				ValueProp->Struct->CopyScriptStruct(ValuePtr, InstancedStruct.GetMemory());
+				ExecResult = ETSBTaskResultStatus::Valid;
+			}
+			else
+			{
+				ExecResult = ETSBTaskResultStatus::NotValid;
+			}
+		P_NATIVE_END;
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
