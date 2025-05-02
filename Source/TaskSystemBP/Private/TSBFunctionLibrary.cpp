@@ -119,8 +119,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 	};
 
 	TArray<Private::FTaskHandle> PrereqTaskHandles;
-	PrereqTaskHandles.Append(ToTaskArray(Prerequisites));
-	PrereqTaskHandles.Append(ToTaskArray(NamedPrerequisites));
+	PrereqTaskHandles.Append(HandleArrayToTaskArray(Prerequisites));
+	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
 
 	const FTask Task = LaunchTaskConditional(
 		Pipe, *TaskObject->GetName(), MoveTemp(InternalTask), MoveTemp(PrereqTaskHandles),
@@ -180,8 +180,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 	};
 
 	TArray<Private::FTaskHandle> PrereqTaskHandles;
-	PrereqTaskHandles.Append(ToTaskArray(Prerequisites));
-	PrereqTaskHandles.Append(ToTaskArray(NamedPrerequisites));
+	PrereqTaskHandles.Append(HandleArrayToTaskArray(Prerequisites));
+	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
 
 	const FTask MainTask = LaunchTaskConditional(
 		Pipe, *TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
@@ -240,8 +240,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 	};
 
 	TArray<Private::FTaskHandle> PrereqTaskHandles;
-	PrereqTaskHandles.Append(ToTaskArray(Prerequisites));
-	PrereqTaskHandles.Append(ToTaskArray(NamedPrerequisites));
+	PrereqTaskHandles.Append(HandleArrayToTaskArray(Prerequisites));
+	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
 
 	const FTask Task = LaunchTaskConditional(
 		Pipe, *TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
