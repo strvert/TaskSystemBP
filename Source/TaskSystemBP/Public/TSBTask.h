@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "TSBTaskResult.h"
+#include "TSBTaskData.h"
 #include "UObject/Object.h"
 #include "TSBTask.generated.h"
 
@@ -32,8 +32,8 @@ struct TASKSYSTEMBP_API FTSBTaskHandle
 	{
 	}
 
-	explicit FTSBTaskHandle(const UE::Tasks::TTask<FTSBTaskResult>& InTask)
-		: Handle(MakeShared<UE::Tasks::TTask<FTSBTaskResult>>(InTask)), TaskType(ETSBTaskType::TSBResultTask)
+	explicit FTSBTaskHandle(const UE::Tasks::TTask<FTSBTaskData>& InTask)
+		: Handle(MakeShared<UE::Tasks::TTask<FTSBTaskData>>(InTask)), TaskType(ETSBTaskType::TSBResultTask)
 	{
 	}
 
@@ -48,5 +48,17 @@ struct TASKSYSTEMBP_API FTSBTaskHandle
 
 namespace TaskSystemBP
 {
-	TASKSYSTEMBP_API TArray<UE::Tasks::Private::FTaskHandle> ToTaskArray(const TArray<FTSBTaskHandle>& Handles);
+	TASKSYSTEMBP_API TArray<UE::Tasks::Private::FTaskHandle> HandleArrayToTaskArray(const TArray<FTSBTaskHandle>& Handles);
+	
+	template<typename Key>
+	TArray<UE::Tasks::Private::FTaskHandle> HandleMapToTaskArray(const TMap<Key, FTSBTaskHandle>& Handles)
+	{
+		TArray<UE::Tasks::Private::FTaskHandle> Result;
+		Result.Reserve(Handles.Num());
+		for (const auto& Pair : Handles)
+		{
+			Result.Add(*Pair.Value.Handle);
+		}
+		return Result;
+	}
 }

@@ -1,11 +1,11 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "TSBTaskResult.h"
+#include "TSBTaskData.h"
 #include "TSBDataTypes.generated.h"
 
-DECLARE_DYNAMIC_DELEGATE_RetVal(FTSBTaskResult, FTSBTaskWithResult);
-DECLARE_DYNAMIC_DELEGATE(FTSBTask);
+DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FTSBTaskData, FTSBTaskWithResult, const FTSBTaskInput&, TaskInput);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FTSBTask, const FTSBTaskInput&, TaskInput);
 
 UENUM()
 enum class ETSBInstancingPolicy : uint8

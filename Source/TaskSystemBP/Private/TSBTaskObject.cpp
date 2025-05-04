@@ -1,16 +1,16 @@
 ﻿#include "TSBTaskObject.h"
 
-void UTSBTaskObject::SetTaskResult(const FTSBTaskResult& InTaskResult)
+void UTSBTaskObject::SetTaskResult(const FTSBTaskData& InTaskResult)
 {
 	TaskResult = InTaskResult;
 }
 
-void UTSBTaskObject::ExecuteTask()
+void UTSBTaskObject::ExecuteTask(const FTSBTaskInput& InTaskInput)
 {
-	K2_ExecuteTask();
+	K2_ExecuteTask(InTaskInput);
 }
 
-FTSBTaskResult UTSBTaskObject::GetTaskResult()
+FTSBTaskData UTSBTaskObject::GetTaskResult()
 {
 	return TaskResult;
 }

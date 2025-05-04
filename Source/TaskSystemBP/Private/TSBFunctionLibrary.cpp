@@ -4,6 +4,7 @@
 #include "TSBLogChannels.h"
 #include "TSBPipe.h"
 #include "TSBTask.h"
+#include "TSBTaskInput.h"
 #include "TSBTaskObject.h"
 
 #if WITH_EDITOR
@@ -14,9 +15,45 @@
 using namespace UE::Tasks;
 using namespace TaskSystemBP;
 
+#define LOCTEXT_NAMESPACE "TaskSystemBP"
+
+namespace TaskSystemBP
+{
+	template <typename TaskBodyType, typename PrerequisitesCollectionType>
+	TTask<TInvokeResult_T<TaskBodyType>> LaunchTaskConditional(
+		const FTSBPipe& Pipe,
+		const TCHAR* InDebugName,
+		TaskBodyType&& TaskBody,
+		PrerequisitesCollectionType&& Prerequisites,
+		ETaskPriority Priority = ETaskPriority::Normal,
+		EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
+	)
+	{
+		if (Pipe.Pipe.IsValid())
+		{
+			return Pipe.Pipe->Launch(
+				InDebugName,
+				Forward<TaskBodyType>(TaskBody),
+				Forward<PrerequisitesCollectionType>(Prerequisites),
+				Priority,
+				ExtendedPriority
+			);
+		}
+		return Launch(
+			InDebugName,
+			Forward<TaskBodyType>(TaskBody),
+			Forward<PrerequisitesCollectionType>(Prerequisites),
+			Priority,
+			ExtendedPriority
+		);
+	}
+}
+
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
                                                     const TSubclassOf<UTSBTaskObject>& TaskClass,
                                                     const TArray<FTSBTaskHandle>& Prerequisites,
+                                                    const FTSBTaskData& TaskInput,
+                                                    const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
                                                     const FTSBPipe& Pipe,
                                                     const ETSBThreadingPolicy InThreadingPolicy)
 {
@@ -29,12 +66,12 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
 	const ETSBInstancingPolicy& InstancingPolicy = CDO->InstancingPolicy;
 	if (InstancingPolicy == ETSBInstancingPolicy::NoInstance)
 	{
-		return LaunchTaskObject(CDO, Prerequisites, Pipe, InThreadingPolicy);
+		return LaunchTaskObject(CDO, Prerequisites, TaskInput, NamedPrerequisites, Pipe, InThreadingPolicy);
 	}
 	if (InstancingPolicy == ETSBInstancingPolicy::InstantiatePerExecution)
 	{
 		UTSBTaskObject* TaskObject = NewObject<UTSBTaskObject>(WorldContextObject, TaskClass);
-		return LaunchTaskObject(TaskObject, Prerequisites, Pipe, InThreadingPolicy);
+		return LaunchTaskObject(TaskObject, Prerequisites, TaskInput, NamedPrerequisites, Pipe, InThreadingPolicy);
 	}
 
 	return FTSBTaskHandle{};
@@ -42,6 +79,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
                                                      const TArray<FTSBTaskHandle>& Prerequisites,
+                                                     const FTSBTaskData& TaskInput,
+                                                     const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
                                                      const FTSBPipe& Pipe,
                                                      const ETSBThreadingPolicy InThreadingPolicy)
 {
@@ -50,36 +89,49 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		return FTSBTaskHandle{};
 	}
 
-	auto InternalTask = [TaskObject, InThreadingPolicy]
+	FTSBTaskInput Input;
+	Input.NamedPrerequisites = NamedPrerequisites;
+	Input.CustomData = TaskInput;
+
+	const FString DebugName = *TaskObject->GetName();
+
+	auto InternalTask = [TaskObject, InThreadingPolicy, Pipe, Input, DebugName]
 	{
 		if (!IsValid(TaskObject))
 		{
+			UE_LOG(LogTaskSystemBP, Warning,
+			       TEXT("UTSBFunctionLibrary::LaunchTaskObject: TaskObject is not valid. DebugName: %s"), *DebugName);
 			return;
 		}
 #if WITH_EDITOR
 		if (UTSBEngineSubsystem::IsPaused())
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-			AddNested(Launch(*TaskObject->GetName(), [TaskObject]
-			{
-				if (!IsValid(TaskObject))
+			AddNested(LaunchTaskConditional(
+				Pipe, *TaskObject->GetName(), [TaskObject, Input, DebugName]
 				{
-					return;
-				}
-				TaskObject->ExecuteTask();
-			}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
+					if (!IsValid(TaskObject))
+					{
+						UE_LOG(LogTaskSystemBP, Warning,
+						       TEXT("UTSBFunctionLibrary::LaunchTaskObject: TaskObject is not valid. DebugName: %s"),
+						       *DebugName);
+						return;
+					}
+					TaskObject->ExecuteTask(Input);
+				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
 			return;
 		}
 #endif
-		TaskObject->ExecuteTask();
+		TaskObject->ExecuteTask(Input);
 	};
 
-	const FTask Task = Pipe.Pipe.IsValid()
-		                   ? Pipe.Pipe->Launch(*TaskObject->GetName(), MoveTemp(InternalTask),
-		                                       ToTaskArray(Prerequisites), ETaskPriority::Normal,
-		                                       ToTaskPriority(InThreadingPolicy))
-		                   : Launch(*TaskObject->GetName(), MoveTemp(InternalTask), ToTaskArray(Prerequisites),
-		                            ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+	TArray<Private::FTaskHandle> PrereqTaskHandles;
+	PrereqTaskHandles.Append(HandleArrayToTaskArray(Prerequisites));
+	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
+
+	const FTask Task = LaunchTaskConditional(
+		Pipe, *TaskObject->GetName(), MoveTemp(InternalTask), MoveTemp(PrereqTaskHandles),
+		ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 
 	const auto ReturnTask = Launch(UE_SOURCE_LOCATION, [TaskObject]
 	{
@@ -87,7 +139,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		{
 			return TaskObject->GetTaskResult();
 		}
-		return FTSBTaskResult{};
+		return FTSBTaskData{};
 	}, Task, ETaskPriority::Normal, EExtendedTaskPriority::Inline);
 
 	return FTSBTaskHandle{ReturnTask};
@@ -95,6 +147,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWithResult& TaskEvent,
                                                               const TArray<FTSBTaskHandle>& Prerequisites,
+                                                              const FTSBTaskData& TaskInput,
+                                                              const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
                                                               const FTSBPipe& Pipe,
                                                               const ETSBThreadingPolicy InThreadingPolicy)
 {
@@ -103,31 +157,58 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 		return FTSBTaskHandle{};
 	}
 
-	TSharedPtr<FTSBTaskResult> ResultHolder = MakeShared<FTSBTaskResult>();
+	TSharedPtr<FTSBTaskData> ResultHolder = MakeShared<FTSBTaskData>();
 
-	auto InternalTask = [TaskEvent, ResultHolder, InThreadingPolicy]() mutable
+	FTSBTaskInput Input;
+	Input.NamedPrerequisites = NamedPrerequisites;
+	Input.CustomData = TaskInput;
+
+	const FString DebugName = *TaskEvent.GetFunctionName().ToString();
+
+	auto InternalTask = [TaskEvent, ResultHolder, InThreadingPolicy, Pipe, Input, DebugName]() mutable
 	{
 #if WITH_EDITOR
 		if (UTSBEngineSubsystem::IsPaused())
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-			AddNested(Launch(UE_SOURCE_LOCATION, [TaskEvent, ResultHolder]() mutable
+			auto LazyInternalTask = [TaskEvent, ResultHolder, Input, DebugName]
 			{
-				*ResultHolder = TaskEvent.Execute();
-			}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy)));
+				if (TaskEvent.IsBound())
+				{
+					*ResultHolder = TaskEvent.Execute(Input);
+				}
+				else
+				{
+					UE_LOG(LogTaskSystemBP, Warning,
+					       TEXT("UTSBFunctionLibrary::LaunchTaskEventWithResult: TaskEvent is not bound. DebugName: %s"
+					       ),
+					       *DebugName);
+				}
+			};
+			AddNested(LaunchTaskConditional(
+				Pipe, *TaskEvent.GetFunctionName().ToString(), MoveTemp(LazyInternalTask),
+				Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal,
+				ToTaskPriority(InThreadingPolicy)));
 			return;
 		}
 #endif
-		*ResultHolder = TaskEvent.Execute();
+		if (!TaskEvent.IsBound())
+		{
+			UE_LOG(LogTaskSystemBP, Warning,
+			       TEXT("UTSBFunctionLibrary::LaunchTaskEventWithResult: TaskEvent is not bound. DebugName: %s"),
+			       *DebugName);
+			return;
+		}
+		*ResultHolder = TaskEvent.Execute(Input);
 	};
 
-	const FTask MainTask = Pipe.Pipe.IsValid()
-		                       ? Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
-		                                           ToTaskArray(Prerequisites), ETaskPriority::Normal,
-		                                           ToTaskPriority(InThreadingPolicy))
-		                       : Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
-		                                ToTaskArray(Prerequisites), ETaskPriority::Normal,
-		                                ToTaskPriority(InThreadingPolicy));
+	TArray<Private::FTaskHandle> PrereqTaskHandles;
+	PrereqTaskHandles.Append(HandleArrayToTaskArray(Prerequisites));
+	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
+
+	const FTask MainTask = LaunchTaskConditional(
+		Pipe, *TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
+		MoveTemp(PrereqTaskHandles), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 
 	const auto ReturnTask = Launch(UE_SOURCE_LOCATION, [ResultHolder]
 	{
@@ -135,7 +216,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 		{
 			return *ResultHolder;
 		}
-		return FTSBTaskResult{};
+		return FTSBTaskData{};
 	}, MainTask, ETaskPriority::Normal, EExtendedTaskPriority::Inline);
 
 	return FTSBTaskHandle{ReturnTask};
@@ -144,6 +225,8 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
                                                     const TArray<FTSBTaskHandle>& Prerequisites,
+                                                    const FTSBTaskData& TaskInput,
+                                                    const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
                                                     const FTSBPipe& Pipe,
                                                     const ETSBThreadingPolicy InThreadingPolicy)
 {
@@ -152,46 +235,57 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 		return FTSBTaskHandle{};
 	}
 
-	auto InternalTask = [TaskEvent, InThreadingPolicy, Pipe]()
+	FTSBTaskInput Input;
+	Input.NamedPrerequisites = NamedPrerequisites;
+	Input.CustomData = TaskInput;
+
+	const FString DebugName = *TaskEvent.GetFunctionName().ToString();
+
+	auto InternalTask = [TaskEvent, InThreadingPolicy, Pipe, Input, DebugName]()
 	{
 #if WITH_EDITOR
 		if (UTSBEngineSubsystem::IsPaused())
 		{
 			UTSBEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UTSBEngineSubsystem>();
-			if (Pipe.Pipe.IsValid())
+			auto LazyInternalTask = [TaskEvent, Input, DebugName]
 			{
-				Pipe.Pipe->Launch(UE_SOURCE_LOCATION, [TaskEvent]
+				if (!TaskEvent.IsBound())
 				{
-					TaskEvent.Execute();
-				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
-			}
-			else
-			{
-				Launch(UE_SOURCE_LOCATION, [TaskEvent]
-				{
-					TaskEvent.Execute();
-				}, Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
-			}
+					UE_LOG(LogTaskSystemBP, Warning,
+					       TEXT("UTSBFunctionLibrary::LaunchTaskEvent: TaskEvent is not bound. DebugName: %s"),
+					       *DebugName);
+					return;
+				}
+				TaskEvent.Execute(Input);
+			};
+
+			AddNested(LaunchTaskConditional(
+				Pipe, UE_SOURCE_LOCATION, MoveTemp(LazyInternalTask),
+				Subsystem->WaitForUnpauseTask(), ETaskPriority::Normal,
+				ToTaskPriority(InThreadingPolicy)));
 		}
 		else
 #endif
 		{
-			TaskEvent.Execute();
+			if (!TaskEvent.IsBound())
+			{
+				UE_LOG(LogTaskSystemBP, Warning,
+				       TEXT("UTSBFunctionLibrary::LaunchTaskEvent: TaskEvent is not bound. DebugName: %s"),
+				       *DebugName);
+				return;
+			}
+			TaskEvent.Execute(Input);
 		}
 	};
 
-	if (Pipe.Pipe.IsValid())
-	{
-		const FTask Task = Pipe.Pipe->Launch(*TaskEvent.GetFunctionName().ToString(),
-		                                     MoveTemp(InternalTask),
-		                                     ToTaskArray(Prerequisites),
-		                                     ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
-		return FTSBTaskHandle{Task};
-	}
+	TArray<Private::FTaskHandle> PrereqTaskHandles;
+	PrereqTaskHandles.Append(HandleArrayToTaskArray(Prerequisites));
+	PrereqTaskHandles.Append(HandleMapToTaskArray(NamedPrerequisites));
 
-	const FTask Task = Launch(*TaskEvent.GetFunctionName().ToString(), MoveTemp(InternalTask),
-	                          ToTaskArray(Prerequisites),
-	                          ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+	const FTask Task = LaunchTaskConditional(
+		Pipe, *DebugName, MoveTemp(InternalTask),
+		MoveTemp(PrereqTaskHandles), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
+
 	return FTSBTaskHandle{Task};
 }
 
@@ -216,6 +310,15 @@ void UTSBFunctionLibrary::Trigger(FTSBTaskHandle& Event)
 	}
 }
 
+FTSBTaskHandle UTSBFunctionLibrary::CombineHandles(const TArray<FTSBTaskHandle>& Handles)
+{
+	return FTSBTaskHandle{
+		Launch(UE_SOURCE_LOCATION, []
+		{
+		}, HandleArrayToTaskArray(Handles), ETaskPriority::Normal, EExtendedTaskPriority::Inline)
+	};
+}
+
 void UTSBFunctionLibrary::BindCompletion(const FTSBTaskHandle& Task, const FTSBOnTaskCompleted& OnTaskCompleted)
 {
 	if (!Task.Handle.IsValid())
@@ -233,7 +336,7 @@ void UTSBFunctionLibrary::BindCompletion(const FTSBTaskHandle& Task, const FTSBO
 	}, *Task.Handle, ETaskPriority::Normal, EExtendedTaskPriority::GameThreadNormalPri);
 }
 
-bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskResult& OutResult)
+bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskData& OutResult)
 {
 	if (!Task.Handle.IsValid())
 	{
@@ -248,7 +351,7 @@ bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskResu
 		return false;
 	}
 
-	const TSharedRef<TTask<FTSBTaskResult>> TaskRef = StaticCastSharedRef<TTask<FTSBTaskResult>>(
+	const TSharedRef<TTask<FTSBTaskData>> TaskRef = StaticCastSharedRef<TTask<FTSBTaskData>>(
 		Task.Handle.ToSharedRef());
 	if (!TaskRef->IsCompleted())
 	{
@@ -284,3 +387,5 @@ FTSBPipe UTSBFunctionLibrary::MakePipe(const FString& InDebugName)
 // {
 // 	return FTSBCancellationToken::MakeCancellationToken();
 // }
+
+#undef LOCTEXT_NAMESPACE
