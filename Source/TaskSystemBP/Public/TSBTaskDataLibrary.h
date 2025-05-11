@@ -7,7 +7,7 @@
 #include "TSBTaskData.h"
 #include "TSBTaskDataLibrary.generated.h"
 
-struct FTSBTaskBase;
+struct FTSBTaskHandle;
 
 namespace TaskSystemBP
 {
@@ -30,7 +30,7 @@ namespace TaskSystemBP
 	}
 
 	template <typename DataStructType, typename ValueType = decltype(DataStructType::DataValue)>
-	ValueType ExtractValueFromHandle(const FTSBTaskBase& InTaskHandle)
+	ValueType ExtractValueFromHandle(const FTSBTaskHandle& InTaskHandle)
 	{
 		FTSBTaskData TaskHandle;
 		if (!UTSBFunctionLibrary::GetTaskResult(InTaskHandle, TaskHandle))
@@ -127,7 +127,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskHandle", DisplayName = "ToObject")
-	static FORCEINLINE UObject* TaskHandleToObject(const FTSBTaskBase& InTaskHandle)
+	static FORCEINLINE UObject* TaskHandleToObject(const FTSBTaskHandle& InTaskHandle)
 	{
 		return TaskSystemBP::ExtractValueFromHandle<FTSBTaskData_Object>(InTaskHandle);
 	}
@@ -145,7 +145,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskHandle", meta = (CompactNodeTitle = "->", BlueprintAutocast))
-	static FORCEINLINE FString Conv_TaskHandleToString(const FTSBTaskBase& InTaskHandle)
+	static FORCEINLINE FString Conv_TaskHandleToString(const FTSBTaskHandle& InTaskHandle)
 	{
 		return TaskSystemBP::ExtractValueFromHandle<FTSBTaskData_String>(InTaskHandle);
 	}
@@ -163,7 +163,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskHandle", meta = (CompactNodeTitle = "->", BlueprintAutocast))
-	static FORCEINLINE float Conv_TaskHandleToFloat(const FTSBTaskBase& InTaskHandle)
+	static FORCEINLINE float Conv_TaskHandleToFloat(const FTSBTaskHandle& InTaskHandle)
 	{
 		return TaskSystemBP::ExtractValueFromHandle<FTSBTaskData_Float>(InTaskHandle);
 	}
@@ -181,7 +181,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskHandle", meta = (CompactNodeTitle = "->", BlueprintAutocast))
-	static FORCEINLINE int32 Conv_TaskHandleToInt(const FTSBTaskBase& InTaskHandle)
+	static FORCEINLINE int32 Conv_TaskHandleToInt(const FTSBTaskHandle& InTaskHandle)
 	{
 		return TaskSystemBP::ExtractValueFromHandle<FTSBTaskData_Int>(InTaskHandle);
 	}
@@ -199,7 +199,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "TaskSystemBP|TaskHandle", meta = (CompactNodeTitle = "->", BlueprintAutocast))
-	static FORCEINLINE bool Conv_TaskHandleToBool(const FTSBTaskBase& InTaskHandle)
+	static FORCEINLINE bool Conv_TaskHandleToBool(const FTSBTaskHandle& InTaskHandle)
 	{
 		return TaskSystemBP::ExtractValueFromHandle<FTSBTaskData_Bool>(InTaskHandle);
 	}
@@ -214,7 +214,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, CustomThunk, Category = "TaskSystemBP|TaskHandle",
 		meta = (ExpandEnumAsExecs = "ExecResult", CustomStructureParam = "OutValue"))
-	static FORCEINLINE void GetTaskStructResult(ETSBTaskDataStatus& ExecResult, UPARAM(ref) FTSBTaskBase& TaskHandle, int32& OutValue);
+	static FORCEINLINE void GetTaskStructResult(ETSBTaskDataStatus& ExecResult, UPARAM(ref) FTSBTaskHandle& TaskHandle, int32& OutValue);
 
 private:
 	DECLARE_FUNCTION(execMakeTaskStructData);

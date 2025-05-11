@@ -9,7 +9,7 @@ struct FTSBTaskInput
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TaskSystemBP")
-	TMap<FString, FTSBTaskBase> NamedPrerequisites;
+	TMap<FString, FTSBTaskHandle> NamedPrerequisites;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TaskSystemBP")
 	FTSBTaskData CustomData;

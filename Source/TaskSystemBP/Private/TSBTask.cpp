@@ -1,6 +1,6 @@
 ﻿#include "TSBTask.h"
 
-TArray<UE::Tasks::Private::FTaskHandle> TaskSystemBP::HandleArrayToTaskArray(const TArray<FTSBTaskBase>& Handles)
+TArray<UE::Tasks::Private::FTaskHandle> TaskSystemBP::HandleArrayToTaskArray(const TArray<FTSBTaskHandle>& Handles)
 {
 	TArray<UE::Tasks::Private::FTaskHandle> Tasks;
 	Tasks.Reserve(Handles.Num());

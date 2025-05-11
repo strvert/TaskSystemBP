@@ -16,11 +16,11 @@ enum class ETSBTaskType : uint8
 };
 
 USTRUCT(BlueprintType, meta = (HasNativeMake))
-struct TASKSYSTEMBP_API FTSBTaskBase
+struct TASKSYSTEMBP_API FTSBTaskHandle
 {
 	GENERATED_BODY()
 
-	virtual ~FTSBTaskBase()
+	virtual ~FTSBTaskHandle()
 	{
 		if (Handle.IsValid())
 		{
@@ -63,21 +63,21 @@ struct TASKSYSTEMBP_API FTSBTaskBase
 	// 	return bIsCancelled;
 	// }
 
-	FTSBTaskBase() : Handle(nullptr), TaskType(ETSBTaskType::None)
+	FTSBTaskHandle() : Handle(nullptr), TaskType(ETSBTaskType::None)
 	{
 	}
 
-	explicit FTSBTaskBase(const UE::Tasks::FTask& InTask)
+	explicit FTSBTaskHandle(const UE::Tasks::FTask& InTask)
 		: Handle(MakeShared<UE::Tasks::FTask>(InTask)), TaskType(ETSBTaskType::Task)
 	{
 	}
 
-	explicit FTSBTaskBase(const UE::Tasks::TTask<FTSBTaskData>& InTask)
+	explicit FTSBTaskHandle(const UE::Tasks::TTask<FTSBTaskData>& InTask)
 		: Handle(MakeShared<UE::Tasks::TTask<FTSBTaskData>>(InTask)), TaskType(ETSBTaskType::TSBResultTask)
 	{
 	}
 
-	explicit FTSBTaskBase(const UE::Tasks::FTaskEvent& InEvent)
+	explicit FTSBTaskHandle(const UE::Tasks::FTaskEvent& InEvent)
 		: Handle(MakeShared<UE::Tasks::FTaskEvent>(InEvent)), TaskType(ETSBTaskType::Event)
 	{
 	}
@@ -90,10 +90,10 @@ private:
 namespace TaskSystemBP
 {
 	TASKSYSTEMBP_API TArray<UE::Tasks::Private::FTaskHandle> HandleArrayToTaskArray(
-		const TArray<FTSBTaskBase>& Handles);
+		const TArray<FTSBTaskHandle>& Handles);
 
 	template <typename Key>
-	TArray<UE::Tasks::Private::FTaskHandle> HandleMapToTaskArray(const TMap<Key, FTSBTaskBase>& Handles)
+	TArray<UE::Tasks::Private::FTaskHandle> HandleMapToTaskArray(const TMap<Key, FTSBTaskHandle>& Handles)
 	{
 		TArray<UE::Tasks::Private::FTaskHandle> Result;
 		Result.Reserve(Handles.Num());

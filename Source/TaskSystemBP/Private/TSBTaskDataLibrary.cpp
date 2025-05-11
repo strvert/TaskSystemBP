@@ -44,7 +44,7 @@ DEFINE_FUNCTION(UTSBTaskDataLibrary::execMakeTaskStructData)
 DEFINE_FUNCTION(UTSBTaskDataLibrary::execGetTaskStructResult)
 {
 	P_GET_ENUM_REF(ETSBTaskDataStatus, ExecResult);
-	P_GET_STRUCT_REF(FTSBTaskBase, TaskHandle);
+	P_GET_STRUCT_REF(FTSBTaskHandle, TaskHandle);
 
 	// Read wildcard Value input.
 	Stack.MostRecentPropertyAddress = nullptr;
