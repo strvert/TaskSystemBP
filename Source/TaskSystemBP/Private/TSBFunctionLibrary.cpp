@@ -49,18 +49,18 @@ namespace TaskSystemBP
 	}
 }
 
-FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
-                                                    const TSubclassOf<UTSBTaskObject>& TaskClass,
-                                                    const TArray<FTSBTaskHandle>& Prerequisites,
-                                                    const FTSBTaskData& TaskInput,
-                                                    const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                    const FTSBPipe& Pipe,
-                                                    const ETSBThreadingPolicy InThreadingPolicy)
+FTSBTaskBase UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
+                                                  const TSubclassOf<UTSBTaskObject>& TaskClass,
+                                                  const TArray<FTSBTaskBase>& Prerequisites,
+                                                  const FTSBTaskData& TaskInput,
+                                                  const TMap<FString, FTSBTaskBase>& NamedPrerequisites,
+                                                  const FTSBPipe& Pipe,
+                                                  const ETSBThreadingPolicy InThreadingPolicy)
 {
 	UTSBTaskObject* CDO = TaskClass->GetDefaultObject<UTSBTaskObject>();
 	if (!IsValid(CDO))
 	{
-		return FTSBTaskHandle{};
+		return FTSBTaskBase{};
 	}
 
 	const ETSBInstancingPolicy& InstancingPolicy = CDO->InstancingPolicy;
@@ -74,19 +74,19 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
 		return LaunchTaskObject(TaskObject, Prerequisites, TaskInput, NamedPrerequisites, Pipe, InThreadingPolicy);
 	}
 
-	return FTSBTaskHandle{};
+	return FTSBTaskBase{};
 }
 
-FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
-                                                     const TArray<FTSBTaskHandle>& Prerequisites,
-                                                     const FTSBTaskData& TaskInput,
-                                                     const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                     const FTSBPipe& Pipe,
-                                                     const ETSBThreadingPolicy InThreadingPolicy)
+FTSBTaskBase UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
+                                                   const TArray<FTSBTaskBase>& Prerequisites,
+                                                   const FTSBTaskData& TaskInput,
+                                                   const TMap<FString, FTSBTaskBase>& NamedPrerequisites,
+                                                   const FTSBPipe& Pipe,
+                                                   const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!IsValid(TaskObject))
 	{
-		return FTSBTaskHandle{};
+		return FTSBTaskBase{};
 	}
 
 	FTSBTaskInput Input;
@@ -142,19 +142,19 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 		return FTSBTaskData{};
 	}, Task, ETaskPriority::Normal, EExtendedTaskPriority::Inline);
 
-	return FTSBTaskHandle{ReturnTask};
+	return FTSBTaskBase{ReturnTask};
 }
 
-FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWithResult& TaskEvent,
-                                                              const TArray<FTSBTaskHandle>& Prerequisites,
-                                                              const FTSBTaskData& TaskInput,
-                                                              const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                              const FTSBPipe& Pipe,
-                                                              const ETSBThreadingPolicy InThreadingPolicy)
+FTSBTaskBase UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWithResult& TaskEvent,
+                                                            const TArray<FTSBTaskBase>& Prerequisites,
+                                                            const FTSBTaskData& TaskInput,
+                                                            const TMap<FString, FTSBTaskBase>& NamedPrerequisites,
+                                                            const FTSBPipe& Pipe,
+                                                            const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!TaskEvent.IsBound())
 	{
-		return FTSBTaskHandle{};
+		return FTSBTaskBase{};
 	}
 
 	TSharedPtr<FTSBTaskData> ResultHolder = MakeShared<FTSBTaskData>();
@@ -219,20 +219,20 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 		return FTSBTaskData{};
 	}, MainTask, ETaskPriority::Normal, EExtendedTaskPriority::Inline);
 
-	return FTSBTaskHandle{ReturnTask};
+	return FTSBTaskBase{ReturnTask};
 }
 
 
-FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
-                                                    const TArray<FTSBTaskHandle>& Prerequisites,
-                                                    const FTSBTaskData& TaskInput,
-                                                    const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                    const FTSBPipe& Pipe,
-                                                    const ETSBThreadingPolicy InThreadingPolicy)
+FTSBTaskBase UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
+                                                  const TArray<FTSBTaskBase>& Prerequisites,
+                                                  const FTSBTaskData& TaskInput,
+                                                  const TMap<FString, FTSBTaskBase>& NamedPrerequisites,
+                                                  const FTSBPipe& Pipe,
+                                                  const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!TaskEvent.IsBound())
 	{
-		return FTSBTaskHandle{};
+		return FTSBTaskBase{};
 	}
 
 	FTSBTaskInput Input;
@@ -267,7 +267,7 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 		else
 #endif
 		{
-			if (!TaskEvent.IsBound())
+			if (!TaskEvent.IsBound() || !IsValid(TaskEvent.GetUObject()))
 			{
 				UE_LOG(LogTaskSystemBP, Warning,
 				       TEXT("UTSBFunctionLibrary::LaunchTaskEvent: TaskEvent is not bound. DebugName: %s"),
@@ -286,42 +286,46 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
 		Pipe, *DebugName, MoveTemp(InternalTask),
 		MoveTemp(PrereqTaskHandles), ETaskPriority::Normal, ToTaskPriority(InThreadingPolicy));
 
-	return FTSBTaskHandle{Task};
+	return FTSBTaskBase{Task};
 }
 
-void UTSBFunctionLibrary::AddNestedTask(const FTSBTaskHandle& ChildTask)
+void UTSBFunctionLibrary::AddNestedTask(const FTSBTaskBase& ChildTask)
 {
-	AddNested(*ChildTask.Handle);
+	AddNested(*ChildTask.GetHandle());
 }
 
-void UTSBFunctionLibrary::AddPrerequisite(FTSBTaskHandle& Event, const FTSBTaskHandle& Prerequisite)
+void UTSBFunctionLibrary::AddPrerequisite(FTSBTaskBase& Event, const FTSBTaskBase& Prerequisite)
 {
-	if (Event.TaskType == ETSBTaskType::Event && Event.Handle.IsValid() && Prerequisite.Handle.IsValid())
+	const TSharedPtr<Private::FTaskHandle> EventHandle = Event.GetHandle();
+
+	if (const TSharedPtr<Private::FTaskHandle> PrerequisiteHandle = Prerequisite.GetHandle();
+		Event.GetTaskType() == ETSBTaskType::Event && EventHandle.IsValid() && PrerequisiteHandle.IsValid())
 	{
-		static_cast<FTaskEvent*>(Event.Handle.Get())->AddPrerequisites(*Prerequisite.Handle);
+		static_cast<FTaskEvent*>(EventHandle.Get())->AddPrerequisites(*PrerequisiteHandle.Get());
 	}
 }
 
-void UTSBFunctionLibrary::Trigger(FTSBTaskHandle& Event)
+void UTSBFunctionLibrary::Trigger(FTSBTaskBase& Event)
 {
-	if (Event.TaskType == ETSBTaskType::Event && Event.Handle.IsValid())
+	if (const TSharedPtr<Private::FTaskHandle> EventHandle = Event.GetHandle();
+		Event.GetTaskType() == ETSBTaskType::Event && EventHandle.IsValid())
 	{
-		static_cast<FTaskEvent*>(Event.Handle.Get())->Trigger();
+		static_cast<FTaskEvent*>(EventHandle.Get())->Trigger();
 	}
 }
 
-FTSBTaskHandle UTSBFunctionLibrary::CombineHandles(const TArray<FTSBTaskHandle>& Handles)
+FTSBTaskBase UTSBFunctionLibrary::CombineHandles(const TArray<FTSBTaskBase>& Handles)
 {
-	return FTSBTaskHandle{
+	return FTSBTaskBase{
 		Launch(UE_SOURCE_LOCATION, []
 		{
 		}, HandleArrayToTaskArray(Handles), ETaskPriority::Normal, EExtendedTaskPriority::Inline)
 	};
 }
 
-void UTSBFunctionLibrary::BindCompletion(const FTSBTaskHandle& Task, const FTSBOnTaskCompleted& OnTaskCompleted)
+void UTSBFunctionLibrary::BindCompletion(const FTSBTaskBase& Task, const FTSBOnTaskCompleted& OnTaskCompleted)
 {
-	if (!Task.Handle.IsValid())
+	if (!Task.GetHandle().IsValid())
 	{
 		UE_LOG(LogTaskSystemBP, Warning, TEXT("UTSBFunctionLibrary::BindCompletion: Task is invalid"));
 		return;
@@ -333,18 +337,18 @@ void UTSBFunctionLibrary::BindCompletion(const FTSBTaskHandle& Task, const FTSBO
 		{
 			OnTaskCompleted.Execute(Task);
 		}
-	}, *Task.Handle, ETaskPriority::Normal, EExtendedTaskPriority::GameThreadNormalPri);
+	}, *Task.GetHandle(), ETaskPriority::Normal, EExtendedTaskPriority::GameThreadNormalPri);
 }
 
-bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskData& OutResult)
+bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskBase& Task, FTSBTaskData& OutResult)
 {
-	if (!Task.Handle.IsValid())
+	if (!Task.GetHandle().IsValid())
 	{
 		UE_LOG(LogTaskSystemBP, Warning, TEXT("UTSBFunctionLibrary::GetTaskResult: Task is invalid"));
 		return false;
 	}
 
-	if (Task.TaskType != ETSBTaskType::TSBResultTask)
+	if (Task.GetTaskType() != ETSBTaskType::TSBResultTask)
 	{
 		UE_LOG(LogTaskSystemBP, Warning,
 		       TEXT("UTSBFunctionLibrary::GetTaskResult: Task is not having a result."));
@@ -352,7 +356,7 @@ bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskData
 	}
 
 	const TSharedRef<TTask<FTSBTaskData>> TaskRef = StaticCastSharedRef<TTask<FTSBTaskData>>(
-		Task.Handle.ToSharedRef());
+		Task.GetHandle().ToSharedRef());
 	if (!TaskRef->IsCompleted())
 	{
 		UE_LOG(LogTaskSystemBP, Warning, TEXT("UTSBFunctionLibrary::GetTaskResult: Task is not completed"));
@@ -368,14 +372,14 @@ bool UTSBFunctionLibrary::GetTaskResult(const FTSBTaskHandle& Task, FTSBTaskData
 // 	return FTSBTaskHandle{UE::Tasks::Any(Tasks)};
 // }
 
-TArray<FTSBTaskHandle> UTSBFunctionLibrary::Conv_HandleToHandleArray(const FTSBTaskHandle& InHandle)
+TArray<FTSBTaskBase> UTSBFunctionLibrary::Conv_HandleToHandleArray(const FTSBTaskBase& InHandle)
 {
 	return TArray{InHandle};
 }
 
-FTSBTaskHandle UTSBFunctionLibrary::MakeTaskEvent(const FString& InDebugName)
+FTSBTaskBase UTSBFunctionLibrary::MakeTaskEvent(const FString& InDebugName)
 {
-	return FTSBTaskHandle{FTaskEvent{*InDebugName}};
+	return FTSBTaskBase{FTaskEvent{*InDebugName}};
 }
 
 FTSBPipe UTSBFunctionLibrary::MakePipe(const FString& InDebugName)
