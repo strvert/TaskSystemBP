@@ -94,6 +94,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TaskSystem", meta = (AutoCreateRefTerm = "InDebugName"))
 	static FTSBPipe MakePipe(const FString& InDebugName);
 
+	UFUNCTION(BlueprintCallable, Category = "TaskSystem")
+	static FTSBTaskHandle MakeCompletedTask();
+
 	// UFUNCTION(BlueprintPure, Category = "TaskSystem")
 	// static FTSBCancellationToken MakeCancellationToken();
 

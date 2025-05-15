@@ -50,12 +50,12 @@ namespace TaskSystemBP
 }
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
-                                                  const TSubclassOf<UTSBTaskObject>& TaskClass,
-                                                  const TArray<FTSBTaskHandle>& Prerequisites,
-                                                  const FTSBTaskData& TaskInput,
-                                                  const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                  const FTSBPipe& Pipe,
-                                                  const ETSBThreadingPolicy InThreadingPolicy)
+                                                    const TSubclassOf<UTSBTaskObject>& TaskClass,
+                                                    const TArray<FTSBTaskHandle>& Prerequisites,
+                                                    const FTSBTaskData& TaskInput,
+                                                    const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
+                                                    const FTSBPipe& Pipe,
+                                                    const ETSBThreadingPolicy InThreadingPolicy)
 {
 	UTSBTaskObject* CDO = TaskClass->GetDefaultObject<UTSBTaskObject>();
 	if (!IsValid(CDO))
@@ -78,11 +78,11 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskClass(UObject* WorldContextObject,
 }
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
-                                                   const TArray<FTSBTaskHandle>& Prerequisites,
-                                                   const FTSBTaskData& TaskInput,
-                                                   const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                   const FTSBPipe& Pipe,
-                                                   const ETSBThreadingPolicy InThreadingPolicy)
+                                                     const TArray<FTSBTaskHandle>& Prerequisites,
+                                                     const FTSBTaskData& TaskInput,
+                                                     const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
+                                                     const FTSBPipe& Pipe,
+                                                     const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!IsValid(TaskObject))
 	{
@@ -146,11 +146,11 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskObject(UTSBTaskObject* TaskObject,
 }
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWithResult& TaskEvent,
-                                                            const TArray<FTSBTaskHandle>& Prerequisites,
-                                                            const FTSBTaskData& TaskInput,
-                                                            const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                            const FTSBPipe& Pipe,
-                                                            const ETSBThreadingPolicy InThreadingPolicy)
+                                                              const TArray<FTSBTaskHandle>& Prerequisites,
+                                                              const FTSBTaskData& TaskInput,
+                                                              const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
+                                                              const FTSBPipe& Pipe,
+                                                              const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!TaskEvent.IsBound())
 	{
@@ -224,11 +224,11 @@ FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEventWithResult(const FTSBTaskWith
 
 
 FTSBTaskHandle UTSBFunctionLibrary::LaunchTaskEvent(const FTSBTask& TaskEvent,
-                                                  const TArray<FTSBTaskHandle>& Prerequisites,
-                                                  const FTSBTaskData& TaskInput,
-                                                  const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
-                                                  const FTSBPipe& Pipe,
-                                                  const ETSBThreadingPolicy InThreadingPolicy)
+                                                    const TArray<FTSBTaskHandle>& Prerequisites,
+                                                    const FTSBTaskData& TaskInput,
+                                                    const TMap<FString, FTSBTaskHandle>& NamedPrerequisites,
+                                                    const FTSBPipe& Pipe,
+                                                    const ETSBThreadingPolicy InThreadingPolicy)
 {
 	if (!TaskEvent.IsBound())
 	{
@@ -385,6 +385,15 @@ FTSBTaskHandle UTSBFunctionLibrary::MakeTaskEvent(const FString& InDebugName)
 FTSBPipe UTSBFunctionLibrary::MakePipe(const FString& InDebugName)
 {
 	return FTSBPipe{*InDebugName};
+}
+
+FTSBTaskHandle UTSBFunctionLibrary::MakeCompletedTask()
+{
+	return FTSBTaskHandle{
+		Launch(UE_SOURCE_LOCATION, []
+		{
+		}, ETaskPriority::Normal, EExtendedTaskPriority::Inline)
+	};
 }
 
 // FTSBCancellationToken UTSBFunctionLibrary::MakeCancellationToken()
